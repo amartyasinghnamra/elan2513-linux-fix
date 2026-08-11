@@ -108,10 +108,8 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 
 	ret = i2c_hid_acpi_get_descriptor(ihid_acpi);
 if (ret < 0) {
-    dev_err(dev, "ELAN DEBUG: get_descriptor failed: ret=%d\n", ret);
-    return ret;
+        return ret;
 }
-dev_info(dev, "ELAN DEBUG: get_descriptor succeeded: address=0x%x\n", ret);
 	hid_descriptor_address = ret;
 
 	acpi_device_fix_up_power(ihid_acpi->adev);
