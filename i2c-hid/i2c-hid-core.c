@@ -40,7 +40,7 @@
 
 #include <drm/drm_panel.h>
 
-#include "hid-ids.h"
+#include "../hid-ids.h"
 #include "i2c-hid.h"
 
 /* quirks to control the device */

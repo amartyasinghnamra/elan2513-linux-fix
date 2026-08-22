@@ -107,9 +107,8 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 	ihid_acpi->ops.restore_sequence = i2c_hid_acpi_restore_sequence;
 
 	ret = i2c_hid_acpi_get_descriptor(ihid_acpi);
-if (ret < 0) {
-        return ret;
-}
+	if (ret < 0)
+		return ret;
 	hid_descriptor_address = ret;
 
 	acpi_device_fix_up_power(ihid_acpi->adev);
@@ -118,16 +117,14 @@ if (ret < 0) {
 		acpi_handle ptpl;
 		acpi_status status;
 
-		dev_info(dev, "ELAN TEST: forcing PTPL._OFF before HID core probe\\n");
-
 		status = acpi_get_handle(NULL,
-			"\\\\_SB.PC00.I2C0.PTPL", &ptpl);
+			"\\_SB.PC00.I2C0.PTPL", &ptpl);
+
 		if (ACPI_FAILURE(status)) {
 			dev_err(dev, "ELAN TEST: could not find PTPL, status=%#x\\n",
 				status);
 		} else {
 			status = acpi_evaluate_object(ptpl, "_OFF", NULL, NULL);
-			dev_info(dev, "ELAN TEST: PTPL._OFF status=%#x\\n", status);
 		}
 
 		msleep(10);

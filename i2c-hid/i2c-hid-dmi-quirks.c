@@ -13,7 +13,7 @@
 #include <linux/hid.h>
 
 #include "i2c-hid.h"
-#include "hid-ids.h"
+#include "../hid-ids.h"
 
 
 struct i2c_hid_desc_override {
