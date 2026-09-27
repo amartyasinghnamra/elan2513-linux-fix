@@ -5,6 +5,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KVER="$(uname -r)"
 BUILD="/lib/modules/$KVER/build"
 DEST="/lib/modules/$KVER/updates/elan-touchscreen"
+MODULES_LOAD="/etc/modules-load.d/elan2513.conf"
 
 echo
 echo "=============================================="
@@ -63,11 +64,22 @@ install -m 0644 "$PROJECT_DIR/i2c-hid.ko" "$DEST/i2c-hid.ko"
 install -m 0644 "$PROJECT_DIR/i2c-hid-acpi.ko" "$DEST/i2c-hid-acpi.ko"
 
 echo
-echo "[5/6] Updating module database..."
+echo "[5/7] Enabling modules at boot..."
+
+cat > "$MODULES_LOAD" <<'EOF'
+i2c_hid
+i2c_hid_acpi
+EOF
+
+chmod 0644 "$MODULES_LOAD"
+echo "Created $MODULES_LOAD"
+
+echo
+echo "[6/7] Updating module database..."
 depmod -a "$KVER"
 
 echo
-echo "[6/6] Rebuilding initramfs..."
+echo "[7/7] Rebuilding initramfs..."
 update-initramfs -u -k "$KVER"
 
 echo
