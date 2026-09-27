@@ -996,6 +996,7 @@ static int i2c_hid_core_suspend(struct i2c_hid *ihid, bool force_poweroff)
 static int i2c_hid_core_resume(struct i2c_hid *ihid)
 {
 	struct i2c_client *client = ihid->client;
+
 	struct hid_device *hid = ihid->hid;
 	int ret;
 
@@ -1026,6 +1027,12 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 			ret = i2c_hid_finish_hwreset(ihid);
 		mutex_unlock(&ihid->reset_lock);
 	} else {
+		if (ihid->ops->resume_prepare) {
+			ret = ihid->ops->resume_prepare(ihid->ops);
+			if (ret)
+				return ret;
+		}
+
 		ret = i2c_hid_set_power(ihid, I2C_HID_PWR_ON);
 	}
 

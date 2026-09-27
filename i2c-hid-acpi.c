@@ -33,7 +33,39 @@
 struct i2c_hid_acpi {
 	struct i2chid_ops ops;
 	struct acpi_device *adev;
+	bool elan2513;
 };
+
+static int i2c_hid_acpi_elan_power_up(struct i2chid_ops *ops)
+{
+	struct i2c_hid_acpi *ihid_acpi =
+		container_of(ops, struct i2c_hid_acpi, ops);
+	acpi_handle ptpl;
+	acpi_status status;
+
+	if (!ihid_acpi->elan2513)
+		return 0;
+
+	status = acpi_get_handle(NULL, "\\_SB.PC00.I2C0.PTPL", &ptpl);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&ihid_acpi->adev->dev,
+			"ELAN2513: failed to find PTPL: status=%#x\n",
+			status);
+		return -ENODEV;
+	}
+
+	status = acpi_evaluate_object(ptpl, "_OFF", NULL, NULL);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&ihid_acpi->adev->dev,
+			"ELAN2513: PTPL._OFF failed: status=%#x\n",
+			status);
+		return -EIO;
+	}
+
+	msleep(10);
+
+	return 0;
+}
 
 static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
 	/*
@@ -94,6 +126,7 @@ static void i2c_hid_acpi_shutdown_tail(struct i2chid_ops *ops)
 static int i2c_hid_acpi_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
+
 	struct i2c_hid_acpi *ihid_acpi;
 	u16 hid_descriptor_address;
 	int ret;
@@ -103,38 +136,26 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ihid_acpi->adev = ACPI_COMPANION(dev);
+	ihid_acpi->elan2513 = !strcmp(client->name, "ELAN2513:00");
+	ihid_acpi->ops.power_up = i2c_hid_acpi_elan_power_up;
+	ihid_acpi->ops.resume_prepare = i2c_hid_acpi_elan_power_up;
 	ihid_acpi->ops.shutdown_tail = i2c_hid_acpi_shutdown_tail;
 	ihid_acpi->ops.restore_sequence = i2c_hid_acpi_restore_sequence;
 
 	ret = i2c_hid_acpi_get_descriptor(ihid_acpi);
-if (ret < 0) {
-        return ret;
+	if (ret < 0) {
+		return ret;
 }
+
 	hid_descriptor_address = ret;
 
 	acpi_device_fix_up_power(ihid_acpi->adev);
 
-	if (!strcmp(client->name, "ELAN2513:00")) {
-		acpi_handle ptpl;
-		acpi_status status;
 
-		dev_info(dev, "ELAN TEST: forcing PTPL._OFF before HID core probe\\n");
+	ret = i2c_hid_core_probe(client, &ihid_acpi->ops,
+				 hid_descriptor_address, 0);
 
-		status = acpi_get_handle(NULL,
-			"\\\\_SB.PC00.I2C0.PTPL", &ptpl);
-		if (ACPI_FAILURE(status)) {
-			dev_err(dev, "ELAN TEST: could not find PTPL, status=%#x\\n",
-				status);
-		} else {
-			status = acpi_evaluate_object(ptpl, "_OFF", NULL, NULL);
-			dev_info(dev, "ELAN TEST: PTPL._OFF status=%#x\\n", status);
-		}
-
-		msleep(10);
-	}
-
-	return i2c_hid_core_probe(client, &ihid_acpi->ops,
-				  hid_descriptor_address, 0);
+	return ret;
 }
 
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
