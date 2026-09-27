@@ -9,7 +9,7 @@ MODULES_LOAD="/etc/modules-load.d/elan2513.conf"
 
 echo
 echo "=============================================="
-echo " ELAN2513 10ms Touchscreen Fix"
+echo " ELAN2513 Persistent Touchscreen Fix"
 echo "=============================================="
 echo
 echo "Kernel : $KVER"
@@ -25,47 +25,54 @@ fi
 if [[ ! -d "$BUILD" ]]; then
     echo "ERROR: Matching kernel headers not found:"
     echo "  $BUILD"
+    echo
+    echo "Install them with:"
+    echo "  sudo apt install linux-headers-$KVER"
     exit 1
 fi
 
-if [[ ! -f "$PROJECT_DIR/i2c-hid-acpi.c" ]]; then
-    echo "ERROR: i2c-hid-acpi.c not found."
+for file in i2c-hid-acpi.c i2c-hid-core.c i2c-hid.h Makefile Kconfig; do
+    if [[ ! -f "$PROJECT_DIR/$file" ]]; then
+        echo "ERROR: Required source file not found: $file"
+        exit 1
+    fi
+done
+
+grep -q 'ELAN2513:00' "$PROJECT_DIR/i2c-hid-acpi.c" || {
+    echo "ERROR: ELAN2513 support not found in i2c-hid-acpi.c"
     exit 1
-fi
+}
 
-if ! grep -q 'msleep(10);' "$PROJECT_DIR/i2c-hid-acpi.c"; then
-    echo "ERROR: 10 ms modification not found."
+grep -q 'resume_prepare' "$PROJECT_DIR/i2c-hid.h" || {
+    echo "ERROR: resume_prepare support not found in i2c-hid.h"
     exit 1
-fi
+}
 
-echo "[1/6] Building modules..."
+grep -q 'PTPL._OFF' "$PROJECT_DIR/i2c-hid-acpi.c" || {
+    echo "ERROR: PTPL._OFF handling not found in i2c-hid-acpi.c"
+    exit 1
+}
 
+grep -q 'msleep(10);' "$PROJECT_DIR/i2c-hid-acpi.c" || {
+    echo "ERROR: 10 ms delay not found in i2c-hid-acpi.c"
+    exit 1
+}
+
+echo "[1/7] Building modules..."
 make -C "$BUILD" M="$PROJECT_DIR" clean
 make -C "$BUILD" M="$PROJECT_DIR" modules
 
 echo
-echo "[2/6] Preparing destination..."
+echo "[2/7] Preparing destination..."
 mkdir -p "$DEST"
 
 echo
-echo "[3/6] Backing up existing custom modules..."
-
-for module in i2c-hid.ko i2c-hid-acpi.ko; do
-    if [[ -f "$DEST/$module" && ! -f "$DEST/$module.stock-backup" ]]; then
-        cp -a "$DEST/$module" "$DEST/$module.stock-backup"
-        echo "Backed up $module"
-    fi
-done
-
-echo
-echo "[4/6] Installing 10 ms modules..."
-
+echo "[3/7] Installing patched modules..."
 install -m 0644 "$PROJECT_DIR/i2c-hid.ko" "$DEST/i2c-hid.ko"
 install -m 0644 "$PROJECT_DIR/i2c-hid-acpi.ko" "$DEST/i2c-hid-acpi.ko"
 
 echo
-echo "[5/7] Enabling modules at boot..."
-
+echo "[4/7] Enabling modules at boot..."
 cat > "$MODULES_LOAD" <<'EOF'
 i2c_hid
 i2c_hid_acpi
@@ -75,26 +82,37 @@ chmod 0644 "$MODULES_LOAD"
 echo "Created $MODULES_LOAD"
 
 echo
-echo "[6/7] Updating module database..."
+echo "[5/7] Updating module database..."
 depmod -a "$KVER"
 
 echo
-echo "[7/7] Rebuilding initramfs..."
+echo "[6/7] Rebuilding initramfs..."
 update-initramfs -u -k "$KVER"
+
+echo
+echo "[7/7] Checking installation..."
+echo
+echo "Resolved i2c_hid_acpi:"
+modinfo -n i2c_hid_acpi
+
+echo
+echo "Module version:"
+modinfo -F vermagic i2c_hid_acpi
 
 echo
 echo "=============================================="
 echo " Installation complete"
 echo "=============================================="
 echo
-echo "Kernel:"
-echo "  $KVER"
-echo
-echo "Resolved module:"
-modinfo -n i2c_hid_acpi
-echo
-echo "10 ms source:"
-grep -n 'msleep(10)' "$PROJECT_DIR/i2c-hid-acpi.c"
-echo
-echo "Reboot to activate:"
+echo "Reboot to activate the patched driver:"
 echo "  sudo reboot"
+echo
+
+if command -v mokutil >/dev/null 2>&1; then
+    if mokutil --sb-state 2>/dev/null | grep -qi "SecureBoot enabled"; then
+        echo "WARNING: Secure Boot is enabled."
+        echo "The locally built unsigned modules may be rejected by the kernel."
+        echo "Disable Secure Boot or sign the modules before rebooting."
+        echo
+    fi
+fi

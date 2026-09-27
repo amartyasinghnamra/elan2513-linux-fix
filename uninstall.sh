@@ -3,6 +3,7 @@ set -euo pipefail
 
 KVER="$(uname -r)"
 DEST="/lib/modules/$KVER/updates/elan-touchscreen"
+MODULES_LOAD="/etc/modules-load.d/elan2513.conf"
 
 if [[ $EUID -ne 0 ]]; then
     echo "Please run:"
@@ -11,33 +12,37 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 echo
-echo "ELAN2513 10ms driver rollback"
+echo "=============================================="
+echo " ELAN2513 Touchscreen Fix Rollback"
+echo "=============================================="
+echo
 echo "Kernel: $KVER"
 echo
 
-if [[ ! -d "$DEST" ]]; then
-    echo "No custom ELAN driver directory found."
-    exit 0
-fi
+echo "[1/4] Removing automatic module loading..."
+rm -f "$MODULES_LOAD"
 
-if [[ -f "$DEST/i2c-hid.ko.stock-backup" ]]; then
-    cp -a "$DEST/i2c-hid.ko.stock-backup" "$DEST/i2c-hid.ko"
-    echo "Restored stock i2c-hid.ko"
-else
-    rm -f "$DEST/i2c-hid.ko"
-fi
+echo
+echo "[2/4] Removing patched modules..."
+rm -f "$DEST/i2c-hid.ko"
+rm -f "$DEST/i2c-hid-acpi.ko"
+rm -f "$DEST"/*.ko.* 2>/dev/null || true
+rmdir "$DEST" 2>/dev/null || true
 
-if [[ -f "$DEST/i2c-hid-acpi.ko.stock-backup" ]]; then
-    cp -a "$DEST/i2c-hid-acpi.ko.stock-backup" "$DEST/i2c-hid-acpi.ko"
-    echo "Restored stock i2c-hid-acpi.ko"
-else
-    rm -f "$DEST/i2c-hid-acpi.ko"
-fi
-
+echo
+echo "[3/4] Updating module database..."
 depmod -a "$KVER"
+
+echo
+echo "[4/4] Rebuilding initramfs..."
 update-initramfs -u -k "$KVER"
 
 echo
-echo "Rollback complete."
+echo "=============================================="
+echo " Rollback complete"
+echo "=============================================="
+echo
+echo "The stock kernel I2C HID modules will be used after reboot."
+echo
 echo "Reboot:"
 echo "  sudo reboot"
