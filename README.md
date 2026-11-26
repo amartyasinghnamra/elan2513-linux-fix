@@ -179,7 +179,7 @@ Install the build requirements:
 
 Clone the exact release:
 
-    git clone --branch v0.2.0-kernel-7.0.0-34 --depth 1 https://github.com/amartyasinghnamra/elan2513-linux-fix.git
+    git clone https://github.com/amartyasinghnamra/elan2513-linux-fix.git
     cd elan2513-linux-fix
 
 Check the environment:
