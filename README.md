@@ -30,10 +30,16 @@ HID power-on sequence.
 ## Tested kernel
 
     Ubuntu
-    7.0.0-34-generic
+    7.0.0-44-generic
 
-Other kernel versions may work, but they are not claimed as tested by this
-release because the modules are built directly against the running kernel.
+Successfully tested on an HP Pavilion Laptop 15-eg3xxx with the ELAN2513
+I2C HID touchscreen.
+
+The project is intended for compatible Ubuntu and Ubuntu-based systems using
+the same ELAN2513 hardware and a compatible I2C-HID/ACPI stack. Other
+distributions and kernel versions have not all been independently tested.
+Future kernel compatibility depends on kernel API changes and must be
+verified; it is not guaranteed.
 
 ## Installation on Ubuntu
 
@@ -44,7 +50,7 @@ Install the build requirements:
 
 Clone the exact tested release:
 
-    git clone --branch v0.2.0-kernel-7.0.0-34 --depth 1 https://github.com/amartyasinghnamra/elan2513-linux-fix.git
+    git clone https://github.com/amartyasinghnamra/elan2513-linux-fix.git
     cd elan2513-linux-fix
 
 Install:
